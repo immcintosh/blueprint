@@ -1,4 +1,4 @@
-mod blueprint;
+mod bp;
 
 /// Command line program options
 #[derive(clap_derive::Parser, Debug)]
@@ -12,9 +12,7 @@ pub struct ProgramOptions {
 fn main() {
     use clap::StructOpt;
 
-    let options = ProgramOptions::parse();
-    let _blueprint =
-        blueprint::Blueprint::parse(std::fs::read_to_string(options.path).unwrap().as_str());
+    let _options = ProgramOptions::parse();
 }
 
 #[cfg(test)]
