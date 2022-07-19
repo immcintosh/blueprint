@@ -1,0 +1,30 @@
+// Example
+// ---------------
+// @[tag]
+// _section_
+// body text
+
+// UTILITY
+WHITESPACE = _{ " " | "\t" }
+sol = _{ SOI | NEWLINE }
+line = _{ (!NEWLINE ~ ANY) }
+
+// TAG
+tag_char = _{ !( "]" | "," | NEWLINE ) ~ ANY }
+tag = { tag_char+ }
+tag_group = _{ "@[" ~ ( tag ~ ","? )+ ~ "]" }
+
+// CONTENT SPAN
+span_delim = _{ "`" | "*" | "/" | "_"+ }
+span = { ( !span_delim ~ line )+ | PUSH(span_delim) ~ (!PEEK ~ line)+ ~ POP }
+text = { span+ }
+
+// CONTENT
+body_element_sec = { PUSH("_"+) ~ ( !(PEEK | NEWLINE) ~ ANY )+ ~ POP }
+body_element_par = { line* }
+body_element = _{ body_element_sec | body_element_par }
+body = { ( sol ~ !"@" ~ body_element )+ }
+
+// DOCUMENT
+block = { sol ~ tag_group ~ sol ~ body }
+blueprint = _{ sol ~ block* ~ EOI }
