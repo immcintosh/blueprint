@@ -1,42 +1,61 @@
-#[derive(Clone, Default, PartialEq, Debug)]
+use anyhow::{Context, Result};
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Tag {
     pub name: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub enum SpanType {
     #[default]
     Raw,
     Bold,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Span {
     pub category: SpanType,
     pub text: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Paragraph {
     pub spans: Vec<Span>,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Heading {
     pub rank: usize,
     pub tags: Vec<Tag>,
     pub text: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Section {
     pub heading: Heading,
     pub body: Vec<Paragraph>,
 }
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
 pub struct Blueprint {
+    pub name: String,
     pub sections: Vec<Section>,
+}
+
+impl Blueprint {
+    pub fn parse_file(file: &std::path::Path) -> Result<Blueprint> {
+        Blueprint::parse(
+            file.file_name()
+                .context("no file")?
+                .to_str()
+                .context("no file")?,
+            &std::fs::read_to_string(file)?,
+        )
+    }
+
+    pub fn parse(name: &str, input: &str) -> Result<Blueprint> {
+        Ok(parse::blueprint(input, name)?)
+    }
 }
 
 peg::parser! {
@@ -51,14 +70,11 @@ peg::parser! {
         rule ident_string() -> &'input str
             = i:$(ident() ++ " ")
 
-        rule tag() -> Tag
+        pub rule tag() -> Tag
             = _ t:$("?" / ident_string()) _ {
                 if t == "?" { Tag::default() }
                 else { Tag { name: t.to_string() } }
             }
-
-        pub rule tags() -> Vec<Tag>
-            = t:(tag() ** ",") end() { t }
 
         rule delim_bold() -> SpanType = "*" { SpanType::Bold }
 
@@ -92,7 +108,7 @@ peg::parser! {
             = "[" t:(tag() ** ",") "]" { t }
 
         pub rule heading() -> Heading
-            = d:$("#"+) _ h:$([^ '\n' | '[' | ' '] ** " ") _ t:heading_tags()? end() {
+            = d:$("#"+) _ h:$(([^ '\n' | '[' | ' ']+) ** " ") _ t:heading_tags()? end() {
                 Heading {
                     rank: d.len(),
                     tags: t.unwrap_or_default(),
@@ -105,9 +121,10 @@ peg::parser! {
                 Section { heading: h, body: b }
             }
 
-        pub rule blueprint() -> Blueprint
+        pub rule blueprint(name: &str) -> Blueprint
             = s:section()+ {
                 Blueprint {
+                    name: String::from(name),
                     sections: s
                 }
             }
@@ -119,9 +136,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn blueprint() {
+    fn blueprint() -> Result<()> {
         let text = "# a [b]\n## c";
         let bp = Blueprint {
+            name: String::new(),
             sections: vec![
                 Section {
                     heading: Heading {
@@ -143,8 +161,35 @@ mod tests {
                 },
             ],
         };
+        assert_eq!(parse::blueprint(text, ""), Ok(bp));
 
-        assert_eq!(parse::blueprint(text), Ok(bp));
+        let text = "# a \n## b\n";
+        let bp = Blueprint {
+            name: String::from(""),
+            sections: vec![
+                Section {
+                    heading: Heading {
+                        rank: 1,
+                        tags: vec![],
+                        text: String::from("a"),
+                    },
+                    body: vec![],
+                },
+                Section {
+                    heading: Heading {
+                        rank: 2,
+                        tags: vec![],
+                        text: String::from("b"),
+                    },
+                    body: vec![],
+                },
+            ],
+        };
+        assert_eq!(parse::blueprint(text, ""), Ok(bp));
+
+        Blueprint::parse_file(std::path::Path::new("test/sample/sample.bp"))?;
+
+        Ok(())
     }
 
     #[test]
@@ -153,49 +198,50 @@ mod tests {
         let sec = super::Section {
             heading: super::Heading {
                 rank: 1,
-                tags: vec![super::Tag {
+                tags: vec![Tag {
                     name: String::from("b"),
                 }],
                 text: String::from("a"),
             },
             body: vec![
-                super::Paragraph {
-                    spans: vec![super::Span {
-                        category: super::SpanType::Raw,
+                Paragraph {
+                    spans: vec![Span {
+                        category: SpanType::Raw,
                         text: String::from("c "),
                     }],
                 },
-                super::Paragraph {
-                    spans: vec![super::Span {
-                        category: super::SpanType::Bold,
+                Paragraph {
+                    spans: vec![Span {
+                        category: SpanType::Bold,
                         text: String::from("d"),
                     }],
                 },
             ],
         };
         let bp = Blueprint {
+            name: String::new(),
             sections: vec![sec.clone()],
         };
-        assert_eq!(super::parse::section(text), Ok(sec));
-        assert_eq!(super::parse::blueprint(text), Ok(bp));
+        assert_eq!(parse::section(text), Ok(sec));
+        assert_eq!(parse::blueprint(text, ""), Ok(bp));
     }
 
     #[test]
     fn body() {
         let par1 = super::Paragraph {
-            spans: vec![super::Span {
-                category: super::SpanType::Raw,
+            spans: vec![Span {
+                category: SpanType::Raw,
                 text: String::from(" a"),
             }],
         };
         let par2 = super::Paragraph {
-            spans: vec![super::Span {
-                category: super::SpanType::Bold,
+            spans: vec![Span {
+                category: SpanType::Bold,
                 text: String::from(" b "),
             }],
         };
         let text = &format!("{}\n\n*{}*", par1.spans[0].text, par2.spans[0].text);
-        assert_eq!(super::parse::body(text), Ok(vec![par1, par2]));
+        assert_eq!(parse::body(text), Ok(vec![par1, par2]));
     }
 
     #[test]
@@ -222,10 +268,10 @@ mod tests {
         };
         let tagged_text = &format!("# {} [{}]", tagged.text, tag.name);
 
-        assert_eq!(super::parse::heading(heading1_text), Ok(heading1));
-        assert_eq!(super::parse::heading(heading2_text), Ok(heading2));
-        assert!(!super::parse::heading("_a\na").is_ok());
-        assert_eq!(super::parse::heading(tagged_text), Ok(tagged));
+        assert_eq!(parse::heading(heading1_text), Ok(heading1));
+        assert_eq!(parse::heading(heading2_text), Ok(heading2));
+        assert!(!parse::heading("_a\na").is_ok());
+        assert_eq!(parse::heading(tagged_text), Ok(tagged));
     }
 
     #[test]
@@ -253,22 +299,11 @@ mod tests {
             name: String::from("this is a tag"),
         };
 
-        assert_eq!(super::parse::tags("?"), Ok(vec![super::Tag::default()]));
+        assert_eq!(parse::tag("?"), Ok(Tag::default()));
+        assert_eq!(parse::tag(&format!("{}", tag.name)), Ok(tag.clone()));
         assert_eq!(
-            super::parse::tags(&format!("{}", tag.name)),
-            Ok(vec![tag.clone()])
-        );
-        assert_eq!(
-            super::parse::tags(&format!("{}", long_tag.name)),
-            Ok(vec![long_tag.clone()])
-        );
-        assert_eq!(
-            super::parse::tags(&format!("{},{}", tag.name, tag.name)),
-            Ok(vec![tag.clone(), tag.clone()])
-        );
-        assert_eq!(
-            super::parse::tags(&format!(" {} , {} \n", tag.name, long_tag.name)),
-            Ok(vec![tag.clone(), long_tag.clone()])
+            parse::tag(&format!("{}", long_tag.name)),
+            Ok(long_tag.clone())
         );
     }
 }
