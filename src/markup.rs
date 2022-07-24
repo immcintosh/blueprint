@@ -82,7 +82,7 @@ peg::parser! {
             = delim_bold()
 
         rule span_text_raw() -> Span
-            = i:$((!(delim() / (_ "#") / ("\n" _ "\n")) [_])+) {
+            = i:$([^ '\n' | '*']+) {
                 Span { category: SpanType::Raw, text: i.to_string() }
             }
 
@@ -98,17 +98,20 @@ peg::parser! {
         pub rule span() -> Span
             = s:(span_text_raw() / span_text_del()) { s }
 
-        rule paragraph() -> Paragraph
-            = s:(span()+) "\n"? { Paragraph { spans: s } }
+        pub rule paragraph() -> Paragraph
+            = !"#" s:(span()+) { Paragraph { spans: s } }
 
         pub rule body() -> Vec<Paragraph>
-            = paragraph() ** "\n"
+            = ['\n']* p:(paragraph() ** (['\n']+)) ['\n']* { p }
 
         rule heading_tags() -> Vec<Tag>
             = "[" t:(tag() ** ",") "]" { t }
 
+        rule heading_text() -> &'input str
+            = $([^ '\n' | '[' | ' ']+)
+
         pub rule heading() -> Heading
-            = d:$("#"+) _ h:$(([^ '\n' | '[' | ' ']+) ** " ") _ t:heading_tags()? end() {
+            = d:$("#"+) _ h:$(heading_text() ** " ") _ t:heading_tags()? end() {
                 Heading {
                     rank: d.len(),
                     tags: t.unwrap_or_default(),
@@ -210,6 +213,7 @@ mod tests {
                         text: String::from("c "),
                     }],
                 },
+                Paragraph::default(),
                 Paragraph {
                     spans: vec![Span {
                         category: SpanType::Bold,
@@ -241,7 +245,10 @@ mod tests {
             }],
         };
         let text = &format!("{}\n\n*{}*", par1.spans[0].text, par2.spans[0].text);
-        assert_eq!(parse::body(text), Ok(vec![par1, par2]));
+        assert_eq!(
+            parse::body(text),
+            Ok(vec![par1, Paragraph::default(), par2])
+        );
     }
 
     #[test]

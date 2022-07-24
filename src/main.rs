@@ -1,4 +1,5 @@
 mod markup;
+mod model;
 mod resource;
 mod template;
 
@@ -37,6 +38,7 @@ fn process(options: ProgramOptions) -> Result<()> {
                 _ => unreachable!(),
             }
         });
+    let blueprints = model::reassemble(blueprints);
     let _eng = template::Engine::new()?;
     resource::store(resource::THEME_MCSS_DIR, output_path)?;
     for content in blueprints {
