@@ -28,6 +28,27 @@ pub struct Engine {
 impl Engine {
     pub fn new() -> Result<Engine> {
         let mut tera = tera::Tera::default();
+        tera.register_function(
+            "span_class",
+            |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
+                if let Some(span) = args.get("span") {
+                    if let Ok(span) = tera::from_value::<crate::markup::Span>(span.clone()) {
+                        match span.category {
+                            crate::markup::SpanType::Raw => Ok(tera::to_value("")?),
+                            crate::markup::SpanType::Bold => Ok(tera::to_value("m-text m-strong")?),
+                            crate::markup::SpanType::Italic => Ok(tera::to_value("m-text m-em")?),
+                            crate::markup::SpanType::Strikethrough => {
+                                Ok(tera::to_value("m-text m-s")?)
+                            }
+                        }
+                    } else {
+                        Err("'span' is not a span".into())
+                    }
+                } else {
+                    Err("'span' argument missing".into())
+                }
+            },
+        );
         let templates = TEMPLATE_DIR
             .files()
             .map(|f| {

@@ -6,7 +6,7 @@
 {% for body in section.body -%}
 <p>
 {%- for span in body.spans -%}
-<span>{{ span.text }}</span>
+<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
 {%- endfor -%}
 </p>
 {%- endfor %}

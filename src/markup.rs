@@ -1,42 +1,44 @@
 use anyhow::{Context, Result};
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Tag {
     pub name: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SpanType {
     #[default]
     Raw,
     Bold,
+    Italic,
+    Strikethrough,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Span {
     pub category: SpanType,
     pub text: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Paragraph {
     pub spans: Vec<Span>,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Heading {
     pub rank: usize,
     pub tags: Vec<Tag>,
     pub text: String,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Section {
     pub heading: Heading,
     pub body: Vec<Paragraph>,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Blueprint {
     pub name: String,
     pub sections: Vec<Section>,
@@ -78,11 +80,15 @@ peg::parser! {
 
         rule delim_bold() -> SpanType = "*" { SpanType::Bold }
 
+        rule delim_italic() -> SpanType = "/" { SpanType::Italic }
+
+        rule delim_strikethrough() -> SpanType = "~" { SpanType::Strikethrough }
+
         rule delim() -> SpanType
-            = delim_bold()
+            = delim_bold() / delim_italic() / delim_strikethrough()
 
         rule span_text_raw() -> Span
-            = i:$([^ '\n' | '*']+) {
+            = i:$((!delim() [^ '\n'])+) {
                 Span { category: SpanType::Raw, text: i.to_string() }
             }
 
