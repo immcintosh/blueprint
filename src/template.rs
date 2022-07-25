@@ -1,3 +1,4 @@
+use crate::model::*;
 use anyhow::Result;
 
 const TEMPLATE_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/template");
@@ -7,7 +8,7 @@ pub trait Page {
     fn render(&self, eng: &Engine) -> Result<String>;
 }
 
-impl Page for crate::markup::Blueprint {
+impl Page for Blueprint {
     fn file_name(&self) -> std::path::PathBuf {
         std::path::PathBuf::from(format!("{}.{}", self.name.replace(" ", "_"), "html"))
     }
@@ -32,14 +33,12 @@ impl Engine {
             "span_class",
             |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
                 if let Some(span) = args.get("span") {
-                    if let Ok(span) = tera::from_value::<crate::markup::Span>(span.clone()) {
+                    if let Ok(span) = tera::from_value::<Span>(span.clone()) {
                         match span.category {
-                            crate::markup::SpanType::Raw => Ok(tera::to_value("")?),
-                            crate::markup::SpanType::Bold => Ok(tera::to_value("m-text m-strong")?),
-                            crate::markup::SpanType::Italic => Ok(tera::to_value("m-text m-em")?),
-                            crate::markup::SpanType::Strikethrough => {
-                                Ok(tera::to_value("m-text m-s")?)
-                            }
+                            SpanType::Raw => Ok(tera::to_value("")?),
+                            SpanType::Bold => Ok(tera::to_value("m-text m-strong")?),
+                            SpanType::Italic => Ok(tera::to_value("m-text m-em")?),
+                            SpanType::Strikethrough => Ok(tera::to_value("m-text m-s")?),
                         }
                     } else {
                         Err("'span' is not a span".into())
@@ -68,8 +67,8 @@ impl Engine {
 mod tests {
     use super::*;
 
-    fn make_blueprint() -> crate::markup::Blueprint {
-        crate::markup::Blueprint {
+    fn make_blueprint() -> Blueprint {
+        Blueprint {
             ..Default::default()
         }
     }

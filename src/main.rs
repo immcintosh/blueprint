@@ -25,10 +25,10 @@ fn process(options: ProgramOptions) -> Result<()> {
     anyhow::ensure!(!output_path.is_file());
     let blueprints = input_path
         .read_dir()?
-        .filter_map(|entry| -> Option<markup::Blueprint> {
+        .filter_map(|entry| -> Option<model::Blueprint> {
             match entry.ok()? {
                 e if e.file_type().ok()?.is_file() => {
-                    let bp = markup::Blueprint::parse_file(&e.path());
+                    let bp = model::Blueprint::parse_file(&e.path());
                     if let Err(er) = &bp {
                         println!("{}", er)
                     }

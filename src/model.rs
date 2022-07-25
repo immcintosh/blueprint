@@ -1,9 +1,53 @@
 use std::collections::HashMap;
 
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Tag {
+    pub name: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SpanType {
+    #[default]
+    Raw,
+    Bold,
+    Italic,
+    Strikethrough,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Span {
+    pub category: SpanType,
+    pub text: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Paragraph {
+    pub spans: Vec<Span>,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Heading {
+    pub rank: usize,
+    pub tags: Vec<Tag>,
+    pub text: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Section {
+    pub heading: Heading,
+    pub body: Vec<Paragraph>,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Blueprint {
+    pub name: String,
+    pub sections: Vec<Section>,
+}
+
 pub fn reassemble<'a>(
-    input: impl IntoIterator<Item = impl std::borrow::Borrow<crate::markup::Blueprint>>,
-) -> Vec<crate::markup::Blueprint> {
-    let mut entities: HashMap<String, crate::markup::Blueprint> = HashMap::new();
+    input: impl IntoIterator<Item = impl std::borrow::Borrow<Blueprint>>,
+) -> Vec<Blueprint> {
+    let mut entities: HashMap<String, Blueprint> = HashMap::new();
 
     for bp in input {
         let bp = bp.borrow();
@@ -19,7 +63,7 @@ pub fn reassemble<'a>(
             if !entities.contains_key(owner) {
                 entities.insert(
                     owner.to_string(),
-                    crate::markup::Blueprint {
+                    Blueprint {
                         name: owner.to_string(),
                         ..Default::default()
                     },
