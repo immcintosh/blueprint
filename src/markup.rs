@@ -19,81 +19,80 @@ impl Blueprint {
 
 peg::parser! {
     grammar parse() for str {
-        rule _() -> &'input str = $(" "*)
+        // Utility syntax
+        rule _() -> &'input str = quiet!{$([' ' | '\t']*)}
+        rule __() -> &'input str = quiet!{$(_ ['\n' | '\r']+)} / expected!("eol")
+        rule ___() -> &'input str = quiet!{$(_ (![_] / __))} / expected!("eol / eof")
 
-        rule end() -> &'input str = i:$("\n" / ![_])
-
-        rule ident() -> &'input str
-            = i:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+)
-
-        rule ident_string() -> &'input str
-            = i:$(ident() ++ " ")
-
-        pub rule tag() -> Tag
-            = _ t:$("?" / ident_string()) _ {
-                if t == "?" { Tag::default() }
-                else { Tag { name: t.to_string() } }
+        // Span syntax
+        rule span_decoration() -> SpanType
+            = d:['*' | '/' | '~'] {
+                match d {
+                    '*' => SpanType::Bold,
+                    '/' => SpanType::Italic,
+                    '~' => SpanType::Strikethrough,
+                    _ => unreachable!()
+                }
             }
-
-        rule delim_bold() -> SpanType = "*" { SpanType::Bold }
-
-        rule delim_italic() -> SpanType = "/" { SpanType::Italic }
-
-        rule delim_strikethrough() -> SpanType = "~" { SpanType::Strikethrough }
-
-        rule delim() -> SpanType
-            = delim_bold() / delim_italic() / delim_strikethrough()
-
-        rule span_text_raw() -> Span
-            = i:$((!delim() [^ '\n'])+) {
-                Span { category: SpanType::Raw, text: i.to_string() }
-            }
-
-        rule span_text_del() -> Span
-            = d1:(delim()) i:$(span_text_raw()) d2:(delim()) {?
-                if d1 == d2 {
-                    Ok(Span { category: d1, text: i.to_string() })
+        pub rule span_decorated() -> Span
+            = open:span_decoration() s:$(span_plain()) close:span_decoration() {?
+                if open == close {
+                    Ok(Span {
+                        category: open,
+                        text: s.to_string()
+                    })
                 } else {
                     Err("mismatched span delimiters")
                 }
             }
-
+        pub rule span_plain() -> Span
+            = s:$((!__ !span_decoration() [_])+) {
+                Span {
+                    category: SpanType::Raw,
+                    text: s.to_string()
+                }
+            }
         pub rule span() -> Span
-            = s:(span_text_raw() / span_text_del()) { s }
+            = span_decorated() / span_plain()
 
-        pub rule paragraph() -> Paragraph
-            = !"#" s:(span()+) { Paragraph { spans: s } }
-
+        // Body syntax
+        rule paragraph() -> Paragraph
+            = __* !['#'] s:span()+ ___ { Paragraph {
+                spans: s
+            } }
         pub rule body() -> Vec<Paragraph>
-            = ['\n']* p:(paragraph() ** (['\n']+)) ['\n']* { p }
+            = paragraph()+
 
-        rule heading_tags() -> Vec<Tag>
-            = "[" t:(tag() ** ",") "]" { t }
+        // Tag syntax
+        pub rule tag() -> Tag
+            = t:$([^ ']' | ',']+) {
+                if t == "?" { Tag::default() }
+                else { Tag { name: t.to_string() } }
+            }
+        pub rule tags() -> Vec<Tag>
+            = ['['] t:(tag() ** ",") [']'] { t }
 
-        rule heading_text() -> &'input str
-            = $([^ '\n' | '[' | ' ']+)
-
+        // Heading syntax
+        rule heading_words() -> &'input str = $(([^ '\n' | '\r' | '[' | ' ']+) ++ (" "+))
         pub rule heading() -> Heading
-            = d:$("#"+) _ h:$(heading_text() ** " ") _ t:heading_tags()? end() {
+            = d:$("#"+) _ h:$(heading_words()) _ t:tags()? ___ {
                 Heading {
                     rank: d.len(),
                     tags: t.unwrap_or_default(),
-                    text: h.to_string()
+                    text: h.to_string(),
                 }
             }
 
+        // Document syntax
         pub rule section() -> Section
-            = h:heading() b:body() {
-                Section { heading: h, body: b }
-            }
-
-        pub rule blueprint(name: &str) -> Blueprint
-            = s:section()+ {
-                Blueprint {
-                    name: String::from(name),
-                    sections: s
+            = __* h:heading() b:body()? {
+                Section {
+                    heading: h,
+                    body: b.unwrap_or_default(),
                 }
             }
+        pub rule blueprint(name: &str) -> Blueprint
+            = s:section()* ___ { Blueprint { name: name.to_string(), sections: s }}
     }
 }
 
@@ -173,10 +172,9 @@ mod tests {
                 Paragraph {
                     spans: vec![Span {
                         category: SpanType::Raw,
-                        text: String::from("c "),
+                        text: String::from("c"),
                     }],
                 },
-                Paragraph::default(),
                 Paragraph {
                     spans: vec![Span {
                         category: SpanType::Bold,
@@ -208,10 +206,7 @@ mod tests {
             }],
         };
         let text = &format!("{}\n\n*{}*", par1.spans[0].text, par2.spans[0].text);
-        assert_eq!(
-            parse::body(text),
-            Ok(vec![par1, Paragraph::default(), par2])
-        );
+        assert_eq!(parse::body(text), Ok(vec![par1, par2]));
     }
 
     #[test]
@@ -240,7 +235,6 @@ mod tests {
 
         assert_eq!(parse::heading(heading1_text), Ok(heading1));
         assert_eq!(parse::heading(heading2_text), Ok(heading2));
-        assert!(!parse::heading("_a\na").is_ok());
         assert_eq!(parse::heading(tagged_text), Ok(tagged));
     }
 
