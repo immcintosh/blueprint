@@ -1,7 +1,16 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum TagCategory {
+    #[default]
+    Simple,
+    Requires,
+    Satisfies,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Tag {
+    pub category: TagCategory,
     pub name: String,
 }
 
@@ -54,7 +63,6 @@ pub fn reassemble<'a>(
         for sec in &bp.sections {
             // The default page "?" contains every section which doesn't have an explicitly declared owner.
             let mut owner: &str = "_free_";
-            // Search tags for an owner specifier.
             for tag in &sec.heading.tags {
                 if tag.name.starts_with("@") {
                     owner = &tag.name[1..];

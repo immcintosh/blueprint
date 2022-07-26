@@ -30,6 +30,24 @@ impl Engine {
     pub fn new() -> Result<Engine> {
         let mut tera = tera::Tera::default();
         tera.register_function(
+            "tag_class",
+            |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
+                if let Some(tag) = args.get("tag") {
+                    if let Ok(tag) = tera::from_value::<Tag>(tag.clone()) {
+                        match tag.category {
+                            TagCategory::Simple => Ok(tera::to_value("m-label m-flat m-default")?),
+                            TagCategory::Requires => Ok(tera::to_value("m-label m-warning")?),
+                            TagCategory::Satisfies => Ok(tera::to_value("m-label m-success")?),
+                        }
+                    } else {
+                        Err("'tag' is not a tag".into())
+                    }
+                } else {
+                    Err("'tag' argument missing".into())
+                }
+            },
+        );
+        tera.register_function(
             "span_class",
             |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
                 if let Some(span) = args.get("span") {

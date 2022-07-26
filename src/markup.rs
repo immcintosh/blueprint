@@ -64,10 +64,21 @@ peg::parser! {
             = paragraph()+
 
         // Tag syntax
+        rule tag_category() -> TagCategory
+            = c:(['?' | '=']?) {
+                match c {
+                    Some('?') => TagCategory::Requires,
+                    Some('=') => TagCategory::Satisfies,
+                    None => TagCategory::Simple,
+                    Some(_) => unreachable!()
+                }
+            }
         pub rule tag() -> Tag
-            = t:$([^ ']' | ',']+) {
-                if t == "?" { Tag::default() }
-                else { Tag { name: t.to_string() } }
+            = c:tag_category() t:$([^ ']' | ',']+) {
+                Tag {
+                    category: c,
+                    name: t.to_string()
+                }
             }
         pub rule tags() -> Vec<Tag>
             = ['['] t:(tag() ** ",") [']'] { t }
@@ -111,6 +122,7 @@ mod tests {
                         rank: 1,
                         tags: vec![Tag {
                             name: String::from("b"),
+                            ..Default::default()
                         }],
                         text: String::from("a"),
                     },
@@ -165,6 +177,7 @@ mod tests {
                 rank: 1,
                 tags: vec![Tag {
                     name: String::from("b"),
+                    ..Default::default()
                 }],
                 text: String::from("a"),
             },
@@ -225,6 +238,7 @@ mod tests {
         let heading2_text = &format!("##{}", heading2.text);
         let tag = super::Tag {
             name: String::from("b"),
+            ..Default::default()
         };
         let tagged = super::Heading {
             rank: 1,
@@ -258,16 +272,20 @@ mod tests {
     fn tag() {
         let tag = super::Tag {
             name: String::from("a"),
+            ..Default::default()
         };
         let long_tag = super::Tag {
             name: String::from("this is a tag"),
+            ..Default::default()
         };
 
-        assert_eq!(parse::tag("?"), Ok(Tag::default()));
-        assert_eq!(parse::tag(&format!("{}", tag.name)), Ok(tag.clone()));
         assert_eq!(
-            parse::tag(&format!("{}", long_tag.name)),
-            Ok(long_tag.clone())
+            parse::tags(&format!("[{}]", tag.name)),
+            Ok(vec![tag.clone()])
+        );
+        assert_eq!(
+            parse::tags(&format!("[{}]", long_tag.name)),
+            Ok(vec![long_tag.clone()])
         );
     }
 }

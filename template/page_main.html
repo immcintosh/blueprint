@@ -1,7 +1,7 @@
 <article><div class="m-container m-container-inflatable"><div class="m-row"><div class="m-col-l-10">
 {% for section in sections -%}
 <h{{ section.heading.rank }}>{{ section.heading.text }}
-    {%- for tag in section.heading.tags %} <span class="m-label m-flat m-primary">{{ tag.name }}</span>{% endfor -%}
+    {%- for tag in section.heading.tags %} <span class="{{ tag_class(tag=tag) }}">{{ tag.name }}</span>{% endfor -%}
 </h{{ section.heading.rank }}>
 {% for body in section.body -%}
 <p>
