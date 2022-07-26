@@ -45,6 +45,7 @@ pub struct Heading {
 pub struct Section {
     pub heading: Heading,
     pub body: Vec<Paragraph>,
+    pub subsections: Vec<Section>,
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]

@@ -1,0 +1,17 @@
+{% macro render_section(section) %}
+<h{{ section.heading.rank }}>{{ section.heading.text }}
+    {%- for tag in section.heading.tags %} <span class="{{ tag_class(tag=tag) }}">{{ tag.name }}</span>{% endfor -%}
+</h{{ section.heading.rank }}>
+
+{% for body in section.body -%}
+<p>
+{%- for span in body.spans -%}
+<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
+{%- endfor -%}
+</p>
+{%- endfor %}
+
+{%- for subsection in section.subsections -%}
+{{ self::render_section(section=subsection) }}
+{%- endfor -%}
+{% endmacro render_section %}

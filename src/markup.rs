@@ -73,7 +73,7 @@ peg::parser! {
                     Some(_) => unreachable!()
                 }
             }
-        pub rule tag() -> Tag
+        rule tag() -> Tag
             = c:tag_category() t:$([^ ']' | ',']+) {
                 Tag {
                     category: c,
@@ -85,25 +85,30 @@ peg::parser! {
 
         // Heading syntax
         rule heading_words() -> &'input str = $(([^ '\n' | '\r' | '[' | ' ']+) ++ (" "+))
-        pub rule heading() -> Heading
-            = d:$("#"+) _ h:$(heading_words()) _ t:tags()? ___ {
-                Heading {
-                    rank: d.len(),
-                    tags: t.unwrap_or_default(),
-                    text: h.to_string(),
+        pub rule heading(rank: usize) -> Heading
+            = d:$("#"+) _ h:$(heading_words()) _ t:tags()? ___ {?
+                if d.len() == rank {
+                    Ok(Heading {
+                        rank: d.len(),
+                        tags: t.unwrap_or_default(),
+                        text: h.to_string(),
+                    })
+                } else {
+                    Err("wrong rank")
                 }
             }
 
         // Document syntax
-        pub rule section() -> Section
-            = __* h:heading() b:body()? {
+        pub rule section(rank: usize) -> Section
+            = __* h:heading(rank) b:body()? sub:(section(rank + 1)*) {
                 Section {
                     heading: h,
                     body: b.unwrap_or_default(),
+                    subsections: sub,
                 }
             }
         pub rule blueprint(name: &str) -> Blueprint
-            = s:section()* ___ { Blueprint { name: name.to_string(), sections: s }}
+            = s:section(1)* ___ { Blueprint { name: name.to_string(), sections: s }}
     }
 }
 
@@ -116,51 +121,49 @@ mod tests {
         let text = "# a [b]\n## c";
         let bp = Blueprint {
             name: String::new(),
-            sections: vec![
-                Section {
-                    heading: Heading {
-                        rank: 1,
-                        tags: vec![Tag {
-                            name: String::from("b"),
-                            ..Default::default()
-                        }],
-                        text: String::from("a"),
-                    },
-                    body: vec![],
+            sections: vec![Section {
+                heading: Heading {
+                    rank: 1,
+                    tags: vec![Tag {
+                        name: String::from("b"),
+                        ..Default::default()
+                    }],
+                    text: String::from("a"),
                 },
-                Section {
+                body: vec![],
+                subsections: vec![Section {
                     heading: Heading {
                         rank: 2,
                         tags: vec![],
                         text: String::from("c"),
                     },
                     body: vec![],
-                },
-            ],
+                    ..Default::default()
+                }],
+            }],
         };
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
 
         let text = "# a \n## b\n";
         let bp = Blueprint {
             name: String::from(""),
-            sections: vec![
-                Section {
-                    heading: Heading {
-                        rank: 1,
-                        tags: vec![],
-                        text: String::from("a"),
-                    },
-                    body: vec![],
+            sections: vec![Section {
+                heading: Heading {
+                    rank: 1,
+                    tags: vec![],
+                    text: String::from("a"),
                 },
-                Section {
+                body: vec![],
+                subsections: vec![Section {
                     heading: Heading {
                         rank: 2,
                         tags: vec![],
                         text: String::from("b"),
                     },
                     body: vec![],
-                },
-            ],
+                    ..Default::default()
+                }],
+            }],
         };
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
 
@@ -195,12 +198,13 @@ mod tests {
                     }],
                 },
             ],
+            subsections: Default::default(),
         };
         let bp = Blueprint {
             name: String::new(),
             sections: vec![sec.clone()],
         };
-        assert_eq!(parse::section(text), Ok(sec));
+        assert_eq!(parse::section(text, 1), Ok(sec));
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
     }
 
@@ -247,9 +251,9 @@ mod tests {
         };
         let tagged_text = &format!("# {} [{}]", tagged.text, tag.name);
 
-        assert_eq!(parse::heading(heading1_text), Ok(heading1));
-        assert_eq!(parse::heading(heading2_text), Ok(heading2));
-        assert_eq!(parse::heading(tagged_text), Ok(tagged));
+        assert_eq!(parse::heading(heading1_text, 1), Ok(heading1));
+        assert!(parse::heading(heading2_text, 1).is_err());
+        assert_eq!(parse::heading(tagged_text, 1), Ok(tagged));
     }
 
     #[test]

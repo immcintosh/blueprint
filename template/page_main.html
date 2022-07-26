@@ -1,14 +1,7 @@
+{%- import "macros.html" as macros -%}
+
 <article><div class="m-container m-container-inflatable"><div class="m-row"><div class="m-col-l-10">
 {% for section in sections -%}
-<h{{ section.heading.rank }}>{{ section.heading.text }}
-    {%- for tag in section.heading.tags %} <span class="{{ tag_class(tag=tag) }}">{{ tag.name }}</span>{% endfor -%}
-</h{{ section.heading.rank }}>
-{% for body in section.body -%}
-<p>
-{%- for span in body.spans -%}
-<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
-{%- endfor -%}
-</p>
-{%- endfor %}
+{{ macros::render_section(section=section) }}
 {%- endfor %}
 </div></div></div></article>
