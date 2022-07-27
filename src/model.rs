@@ -48,6 +48,16 @@ pub struct Section {
     pub subsections: Vec<Section>,
 }
 
+impl Section {
+    pub fn is(&self, category: TagCategory) -> bool {
+        self.heading
+            .tags
+            .iter()
+            .find(|t| t.category == category)
+            .is_some()
+    }
+}
+
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Blueprint {
     pub name: String,

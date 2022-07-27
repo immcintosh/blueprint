@@ -38,12 +38,14 @@ fn process(options: ProgramOptions) -> Result<()> {
                 _ => unreachable!(),
             }
         });
-    let blueprints = model::reassemble(blueprints);
     let _eng = template::Engine::new()?;
     resource::store(resource::THEME_MCSS_DIR, output_path)?;
+
+    // Save blueprints directly as pages
     for content in blueprints {
         std::fs::write(
-            output_path.join(&content.file_name()),
+            output_path
+                .join("page_".to_string() + &content.file_name().to_str().unwrap_or("default")),
             content.render(&_eng)?,
         )?;
     }
