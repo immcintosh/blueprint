@@ -1,24 +1,15 @@
-use crate::model::*;
+use crate::markup::*;
 use anyhow::Result;
 
 const TEMPLATE_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/template");
 
-pub trait Page {
-    fn file_name(&self) -> std::path::PathBuf;
-    fn render(&self, eng: &Engine) -> Result<String>;
+pub trait Renderable {
+    fn template(&self) -> &'static str;
 }
 
-impl Page for Blueprint {
-    fn file_name(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from(format!("{}.{}", self.name.replace(" ", "_"), "html"))
-    }
-
-    fn render(&self, eng: &Engine) -> Result<String> {
-        let r = eng
-            .tera
-            .render("page.html", &tera::Context::from_serialize(&self)?)?;
-
-        Ok(r)
+impl Renderable for crate::model::Page {
+    fn template(&self) -> &'static str {
+        "page.html"
     }
 }
 
@@ -79,34 +70,31 @@ impl Engine {
 
         Ok(Engine { tera })
     }
+
+    pub fn render<T: serde::Serialize + Renderable>(&self, input: &T) -> Result<String> {
+        Ok(self
+            .tera
+            .render(input.template(), &tera::Context::from_serialize(&input)?)?)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn make_blueprint() -> Blueprint {
-        Blueprint {
+    fn make_page() -> crate::model::Page {
+        crate::model::Page {
+            file: "test.html".to_string(),
+            title: "test".to_string(),
+            theme: "test.css".to_string(),
             ..Default::default()
         }
     }
 
     #[test]
-    #[ignore]
-    fn generate_page() -> Result<()> {
-        std::fs::write(
-            "test/template/page.html",
-            make_blueprint().render(&Engine::new()?)?,
-        )
-        .ok();
-
-        Ok(())
-    }
-
-    #[test]
     fn page() -> Result<()> {
         assert_eq!(
-            make_blueprint().render(&Engine::new()?)?,
+            Engine::new()?.render(&make_page())?,
             include_str!("../test/template/page.html")
         );
 

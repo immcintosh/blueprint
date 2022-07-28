@@ -1,7 +1,7 @@
 {%- import "macros.html" as macros -%}
 
 <article><div class="m-container m-container-inflatable"><div class="m-row"><div class="m-col-l-10">
-{% for section in sections -%}
+{% for section in content.sections -%}
 {{ macros::render_section(section=section) }}
 {%- endfor %}
 </div></div></div></article>

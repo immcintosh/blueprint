@@ -1,5 +1,68 @@
-use crate::model::*;
 use anyhow::{Context, Result};
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum TagCategory {
+    #[default]
+    Simple,
+    Requires,
+    Satisfies,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Tag {
+    pub category: TagCategory,
+    pub name: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SpanType {
+    #[default]
+    Raw,
+    Bold,
+    Italic,
+    Strikethrough,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Span {
+    pub category: SpanType,
+    pub text: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Paragraph {
+    pub spans: Vec<Span>,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Heading {
+    pub rank: usize,
+    pub tags: Vec<Tag>,
+    pub text: String,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Section {
+    pub heading: Heading,
+    pub body: Vec<Paragraph>,
+    pub subsections: Vec<Section>,
+}
+
+impl Section {
+    pub fn is(&self, category: TagCategory) -> bool {
+        self.heading
+            .tags
+            .iter()
+            .find(|t| t.category == category)
+            .is_some()
+    }
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Blueprint {
+    pub name: String,
+    pub sections: Vec<Section>,
+}
 
 impl Blueprint {
     pub fn parse_file(file: &std::path::Path) -> Result<Blueprint> {

@@ -4,7 +4,6 @@ mod resource;
 mod template;
 
 use anyhow::Result;
-use template::Page;
 
 /// Command line program options
 #[derive(clap_derive::Parser, Debug)]
@@ -25,10 +24,10 @@ fn process(options: ProgramOptions) -> Result<()> {
     anyhow::ensure!(!output_path.is_file());
     let blueprints = input_path
         .read_dir()?
-        .filter_map(|entry| -> Option<model::Blueprint> {
+        .filter_map(|entry| -> Option<markup::Blueprint> {
             match entry.ok()? {
                 e if e.file_type().ok()?.is_file() => {
-                    let bp = model::Blueprint::parse_file(&e.path());
+                    let bp = markup::Blueprint::parse_file(&e.path());
                     if let Err(er) = &bp {
                         println!("{}", er)
                     }
@@ -41,14 +40,7 @@ fn process(options: ProgramOptions) -> Result<()> {
     let _eng = template::Engine::new()?;
     resource::store(resource::THEME_MCSS_DIR, output_path)?;
 
-    // Save blueprints directly as pages
-    for content in blueprints {
-        std::fs::write(
-            output_path
-                .join("page_".to_string() + &content.file_name().to_str().unwrap_or("default")),
-            content.render(&_eng)?,
-        )?;
-    }
+    model::Model::new(blueprints).store(output_path)?;
     Ok(())
 }
 
