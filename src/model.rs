@@ -4,23 +4,26 @@ use anyhow::Result;
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Page {
     pub file: String,
-    pub theme: String,
+    pub css: Vec<String>,
     pub title: String,
     pub content: Blueprint,
 }
 
 pub struct Model {
+    theme: &'static crate::resource::Theme,
     pages: Vec<Page>,
 }
 
 impl Model {
     pub fn new<T: IntoIterator<Item = Blueprint>>(input: T) -> Self {
+        let theme = &crate::resource::THEME_DEFAULT;
         Model {
+            theme: theme,
             pages: input
                 .into_iter()
                 .map(|bp| Page {
                     file: "page_".to_string() + &bp.name + ".html",
-                    theme: "m-dark.css".to_string(),
+                    css: theme.css_files(),
                     title: bp.name.clone(),
                     content: bp.clone(),
                 })

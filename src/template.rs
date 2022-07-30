@@ -86,7 +86,7 @@ mod tests {
         crate::model::Page {
             file: "test.html".to_string(),
             title: "test".to_string(),
-            theme: "test.css".to_string(),
+            css: vec!["test.css".to_string()],
             ..Default::default()
         }
     }

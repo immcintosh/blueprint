@@ -44,18 +44,25 @@ impl<'a> ExtractIf for include_dir::Dir<'a> {
     }
 }
 
-pub struct Theme<'a> {
-    dir: &'a include_dir::Dir<'a>,
-    use_css: &'a [&'a str],
+pub struct Theme {
+    dir: &'static include_dir::Dir<'static>,
+    use_css: &'static [&'static str],
 }
 
-impl<'a> Theme<'a> {
+impl Theme {
     pub fn extract(&self, path: &std::path::Path) -> Result<()> {
         self.dir.extract_if(path, |entry| {
             entry.path().extension() == Some(std::ffi::OsStr::new("css"))
         })?;
 
         Ok(())
+    }
+
+    pub fn css_files(&self) -> Vec<String> {
+        self.use_css
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
     }
 }
 
