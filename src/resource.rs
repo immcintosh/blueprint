@@ -51,6 +51,7 @@ pub struct Theme {
 
 impl Theme {
     pub fn extract(&self, path: &std::path::Path) -> Result<()> {
+        std::fs::create_dir_all(path)?;
         self.dir.extract_if(path, |entry| {
             entry.path().extension() == Some(std::ffi::OsStr::new("css"))
         })?;

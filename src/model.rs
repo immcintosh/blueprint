@@ -32,6 +32,7 @@ impl Model {
     }
 
     pub fn store(&self, path: &std::path::Path) -> Result<()> {
+        self.theme.extract(&path.join("theme"))?;
         let eng = crate::template::Engine::new()?;
         for page in &self.pages {
             std::fs::write(path.join(&page.file), eng.render(page)?)?;
