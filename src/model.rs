@@ -1,5 +1,4 @@
 use crate::markup::*;
-use crate::template::*;
 use anyhow::Result;
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -11,16 +10,12 @@ pub struct Page {
 }
 
 pub struct Model {
-    theme_dir: String,
-    pages_dir: String,
     pages: Vec<Page>,
 }
 
 impl Model {
     pub fn new<T: IntoIterator<Item = Blueprint>>(input: T) -> Self {
         Model {
-            theme_dir: ".".to_string(),
-            pages_dir: ".".to_string(),
             pages: input
                 .into_iter()
                 .map(|bp| Page {

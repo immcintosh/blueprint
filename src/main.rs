@@ -38,7 +38,7 @@ fn process(options: ProgramOptions) -> Result<()> {
             }
         });
     let _eng = template::Engine::new()?;
-    resource::store(resource::THEME_MCSS_DIR, output_path)?;
+    resource::THEME_DEFAULT.extract(output_path)?;
 
     model::Model::new(blueprints).store(output_path)?;
     Ok(())
