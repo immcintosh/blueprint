@@ -14,6 +14,17 @@ pub struct Tag {
     pub name: String,
 }
 
+impl Tag {
+    pub fn file_name(&self) -> String {
+        let prefix = match self.category {
+            TagCategory::Simple => "tag_".to_string(),
+            TagCategory::Requires => "req_".to_string(),
+            TagCategory::Satisfies => "req_".to_string(),
+        };
+        prefix + &self.name + ".html"
+    }
+}
+
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SpanType {
     #[default]

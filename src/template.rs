@@ -42,6 +42,20 @@ impl Engine {
             },
         );
         tera.register_function(
+            "tag_link",
+            |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
+                if let Some(tag) = args.get("tag") {
+                    if let Ok(tag) = tera::from_value::<Tag>(tag.clone()) {
+                        Ok(tera::to_value(tag.file_name())?)
+                    } else {
+                        Err("'tag' is not a tag".into())
+                    }
+                } else {
+                    Err("'tag' argument missing".into())
+                }
+            },
+        );
+        tera.register_function(
             "span_class",
             |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
                 if let Some(span) = args.get("span") {
