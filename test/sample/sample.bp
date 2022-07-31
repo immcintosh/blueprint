@@ -9,6 +9,12 @@ Go to [Google](https://google.com) now!
 ## subsection
 ### subsubsection [?tag1,tag2]
 
+| Hello |
+| world |
+
+|| Hello ||
+|| world ||
+
 # section2 [=tag1]
 h|h
 -|-

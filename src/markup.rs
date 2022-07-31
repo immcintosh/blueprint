@@ -71,6 +71,8 @@ pub enum Paragraph {
     #[default]
     Empty,
     Spans(Vec<Span>),
+    Block(Vec<Span>),
+    Note(Vec<Span>),
     Table(Table),
 }
 
@@ -181,6 +183,22 @@ peg::parser! {
         // Body syntax
         rule spans() -> Paragraph
             = __* !['#'] s:span()+ ___ { Paragraph::Spans(s) }
+        rule block_line() -> Vec<Span>
+            = __* "|" s:span_except(<['|']>)+ "|" ___ {
+                s
+            }
+        rule block() -> Paragraph
+            = lines:block_line()+ {
+                Paragraph::Block(lines.iter().flatten().cloned().collect())
+            }
+        rule note_line() -> Vec<Span>
+            = __* "||" s:span_except(<"||">)+ "||" ___ {
+                s
+            }
+        rule note() -> Paragraph
+            = lines:note_line()+ {
+                Paragraph::Note(lines.iter().flatten().cloned().collect())
+            }
         rule table_row() -> Vec<Vec<Span>>
             = __* s:(span_except(<(['|'] / span_decoration())>)+) **<2,> "|" ___ {
                 s
@@ -199,7 +217,7 @@ peg::parser! {
                 body: rows
             })}
         pub rule body() -> Vec<Paragraph>
-            = (table() / spans())+
+            = (block() / note() / table() / spans())+
 
         // Tag syntax
         rule tag_category() -> TagCategory

@@ -14,6 +14,14 @@
 <p>
     {{ self::render_spans(spans=body.Spans) }}
 </p>
+{%- elif "Block" in body -%}
+<aside class="m-block m-default">
+    {{ self::render_spans(spans=body.Block) }}
+</aside>
+{%- elif "Note" in body -%}
+<aside class="m-note m-default">
+    {{ self::render_spans(spans=body.Note) }}
+</aside>
 {%- elif "Table" in body -%}
 <table class="m-table m-fullwidth">
     <thead>
