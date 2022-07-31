@@ -5,10 +5,12 @@
 
 {% for body in section.body -%}
 <p>
-{%- for span in body.spans -%}
+{%- if "Spans" in body -%}
+{%- for span in body.Spans -%}
 <span class="{{ span_class(span=span) }}">{{ span.text }}</span>
 {%- endfor -%}
 </p>
+{%- endif %}
 {%- endfor %}
 
 {%- for subsection in section.subsections -%}

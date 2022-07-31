@@ -41,8 +41,10 @@ pub struct Span {
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Paragraph {
-    pub spans: Vec<Span>,
+pub enum Paragraph {
+    #[default]
+    Empty,
+    Spans(Vec<Span>),
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -158,9 +160,7 @@ peg::parser! {
 
         // Body syntax
         rule paragraph() -> Paragraph
-            = __* !['#'] s:span()+ ___ { Paragraph {
-                spans: s
-            } }
+            = __* !['#'] s:span()+ ___ { Paragraph::Spans(s) }
         pub rule body() -> Vec<Paragraph>
             = paragraph()+
 
@@ -288,18 +288,14 @@ mod tests {
                 text: String::from("a"),
             },
             body: vec![
-                Paragraph {
-                    spans: vec![Span {
-                        category: SpanType::Raw,
-                        text: String::from("c"),
-                    }],
-                },
-                Paragraph {
-                    spans: vec![Span {
-                        category: SpanType::Bold,
-                        text: String::from("d"),
-                    }],
-                },
+                Paragraph::Spans(vec![Span {
+                    category: SpanType::Raw,
+                    text: String::from("c"),
+                }]),
+                Paragraph::Spans(vec![Span {
+                    category: SpanType::Bold,
+                    text: String::from("d"),
+                }]),
             ],
             subsections: Default::default(),
         };
@@ -313,20 +309,19 @@ mod tests {
 
     #[test]
     fn body() {
-        let par1 = super::Paragraph {
-            spans: vec![Span {
-                category: SpanType::Raw,
-                text: String::from(" a"),
-            }],
-        };
-        let par2 = super::Paragraph {
-            spans: vec![Span {
-                category: SpanType::Bold,
-                text: String::from(" b "),
-            }],
-        };
-        let text = &format!("{}\n\n*{}*", par1.spans[0].text, par2.spans[0].text);
-        assert_eq!(parse::body(text), Ok(vec![par1, par2]));
+        let par1 = vec![Span {
+            category: SpanType::Raw,
+            text: String::from(" a"),
+        }];
+        let par2 = vec![Span {
+            category: SpanType::Bold,
+            text: String::from(" b "),
+        }];
+        let text = &format!("{}\n\n*{}*", par1[0].text, par2[0].text);
+        assert_eq!(
+            parse::body(text),
+            Ok(vec![Paragraph::Spans(par1), Paragraph::Spans(par2)])
+        );
     }
 
     #[test]
