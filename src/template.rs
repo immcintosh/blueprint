@@ -3,14 +3,17 @@ use anyhow::Result;
 
 const TEMPLATE_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/template");
 
-pub trait Renderable {
-    fn template(&self) -> &'static str;
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct Page {
+    pub file: std::path::PathBuf,
+    pub title: String,
+    pub content: Blueprint,
 }
 
-impl Renderable for crate::model::Page {
-    fn template(&self) -> &'static str {
-        "page.html"
-    }
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Context {
+    pub css: Vec<String>,
+    pub page: Page,
 }
 
 pub struct Engine {
@@ -71,10 +74,11 @@ impl Engine {
         Ok(Engine { tera })
     }
 
-    pub fn render<T: serde::Serialize + Renderable>(&self, input: &T) -> Result<String> {
-        Ok(self
-            .tera
-            .render(input.template(), &tera::Context::from_serialize(&input)?)?)
+    pub fn render(&self, input: &Page) -> Result<String> {
+        let mut ctx = tera::Context::new();
+        ctx.insert("page", input);
+        ctx.insert("css", &crate::resource::THEME_DEFAULT.css_files());
+        Ok(self.tera.render("page.html", &ctx)?)
     }
 }
 
@@ -82,11 +86,9 @@ impl Engine {
 mod tests {
     use super::*;
 
-    fn make_page() -> crate::model::Page {
-        crate::model::Page {
-            file: "test.html".to_string(),
+    fn make_page() -> Page {
+        Page {
             title: "test".to_string(),
-            css: vec!["test.css".to_string()],
             ..Default::default()
         }
     }

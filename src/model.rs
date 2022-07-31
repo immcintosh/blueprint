@@ -2,79 +2,90 @@ use crate::markup::*;
 use anyhow::Result;
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct Page {
-    pub file: String,
-    pub css: Vec<String>,
-    pub title: String,
-    pub content: Blueprint,
-}
-
 pub struct Requirement {
     pub name: String,
     pub content: Section,
-    pub satisfies: Vec<String>,
+    pub satisfies: Vec<Tag>,
+}
+
+impl Into<crate::template::Page> for &Requirement {
+    fn into(self) -> crate::template::Page {
+        crate::template::Page {
+            file: ("req_".to_string() + &self.name + ".html").into(),
+            title: self.content.title(),
+            content: Blueprint {
+                name: self.name.clone(),
+                root: Section::new_root(vec![self.content.clone()]),
+            },
+        }
+    }
 }
 
 pub struct Model {
     theme: &'static crate::resource::Theme,
-    pages: std::collections::HashMap<String, Page>,
+    pages: std::collections::HashMap<String, Blueprint>,
     requirements: std::collections::HashMap<String, Requirement>,
 }
 
 impl Model {
     pub fn new<T: IntoIterator<Item = Blueprint>>(input: T) -> Model {
-        let mut model = Model {
+        let pages: std::collections::HashMap<String, Blueprint> =
+            input.into_iter().map(|bp| (bp.name.clone(), bp)).collect();
+        Model {
             theme: &crate::resource::THEME_DEFAULT,
-            pages: Default::default(),
-            requirements: Default::default(),
-        };
-
-        let mut pages = std::collections::HashMap::new();
-        for bp in input.into_iter() {
-            let page = Page {
-                file: "page_".to_string() + &bp.name + ".html",
-                css: crate::resource::THEME_DEFAULT.css_files(),
-                title: bp.name.clone(),
-                content: bp.clone(),
-            };
-            pages.insert(bp.name.clone(), page);
+            requirements: Model::requirements(&pages, None),
+            pages: pages,
         }
-
-        for page in &pages {
-            model.gather_requirements(&page.1.content.sections);
-        }
-
-        model.pages = pages;
-
-        model
     }
 
     pub fn store(&self, path: &std::path::Path) -> Result<()> {
         self.theme.store(&path.join("theme"))?;
         let eng = crate::template::Engine::new()?;
-        for page in &self.pages {
-            std::fs::write(path.join(&page.1.file), eng.render(page.1)?)?;
+        for bp in &self.pages {
+            let page: crate::template::Page = bp.1.into();
+            std::fs::write(path.join(&page.file), eng.render(&page)?)?;
         }
         for req in &self.requirements {
-            std::fs::write(path.join("req_".to_string() + req.0 + ".html"), "test")?;
+            let page: crate::template::Page = req.1.into();
+            std::fs::write(path.join(&page.file), eng.render(&page)?)?;
         }
         Ok(())
     }
 
-    fn gather_requirements<'a, T: IntoIterator<Item = &'a Section>>(&mut self, input: T) {
-        for sec in input {
-            let tags = sec.find_tags(TagCategory::Requires);
-            for tag in tags {
-                self.requirements.insert(
+    fn requirements<'a>(
+        pages: &'a std::collections::HashMap<String, Blueprint>,
+        input: Option<&'a Section>,
+    ) -> std::collections::HashMap<String, Requirement> {
+        let mut out: std::collections::HashMap<String, Requirement> =
+            std::collections::HashMap::new();
+        if let Some(sec) = input {
+            for tag in sec.find_tags(TagCategory::Requires) {
+                if let Some(old) = out.insert(
                     tag.name.clone(),
                     Requirement {
                         name: tag.name.clone(),
                         content: sec.clone(),
-                        satisfies: Default::default(),
+                        satisfies: sec
+                            .find_tags(TagCategory::Satisfies)
+                            .iter()
+                            .cloned()
+                            .cloned()
+                            .collect(),
                     },
-                );
+                ) {
+                    eprintln!("Duplicate requirement: {}", old.name);
+                }
             }
-            self.gather_requirements(&sec.subsections);
+            for sec in &sec.subsections {
+                out.extend(Self::requirements(pages, Some(sec)))
+            }
+        } else {
+            for page in pages {
+                for sec in &page.1.root.subsections {
+                    out.extend(Self::requirements(pages, Some(sec)));
+                }
+            }
         }
+        out
     }
 }

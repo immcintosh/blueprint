@@ -58,10 +58,23 @@ impl Section {
     }
 }
 
+impl Section {
+    pub fn new_root(subsections: Vec<Section>) -> Section {
+        Section {
+            subsections,
+            ..Default::default()
+        }
+    }
+
+    pub fn title(&self) -> String {
+        self.heading.text.clone()
+    }
+}
+
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Blueprint {
     pub name: String,
-    pub sections: Vec<Section>,
+    pub root: Section,
 }
 
 impl Blueprint {
@@ -77,6 +90,20 @@ impl Blueprint {
 
     pub fn parse(name: &str, input: &str) -> Result<Blueprint> {
         Ok(parse::blueprint(input, name)?)
+    }
+
+    pub fn title(&self) -> Option<String> {
+        Some(self.root.subsections.get(0)?.heading.text.clone())
+    }
+}
+
+impl Into<crate::template::Page> for &Blueprint {
+    fn into(self) -> crate::template::Page {
+        crate::template::Page {
+            file: ("bp_".to_string() + &self.name + ".html").into(),
+            title: self.title().unwrap_or("Untitled".to_string()),
+            content: self.clone(),
+        }
     }
 }
 
@@ -171,7 +198,9 @@ peg::parser! {
                 }
             }
         pub rule blueprint(name: &str) -> Blueprint
-            = s:section(1)* ___ { Blueprint { name: name.to_string(), sections: s }}
+            = s:section(1)* ___ { Blueprint {
+                name: name.to_string(),
+                root: Section::new_root(s) } }
     }
 }
 
@@ -184,7 +213,7 @@ mod tests {
         let text = "# a [b]\n## c";
         let bp = Blueprint {
             name: String::new(),
-            sections: vec![Section {
+            root: Section::new_root(vec![Section {
                 heading: Heading {
                     rank: 1,
                     tags: vec![Tag {
@@ -203,14 +232,14 @@ mod tests {
                     body: vec![],
                     ..Default::default()
                 }],
-            }],
+            }]),
         };
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
 
         let text = "# a \n## b\n";
         let bp = Blueprint {
             name: String::from(""),
-            sections: vec![Section {
+            root: Section::new_root(vec![Section {
                 heading: Heading {
                     rank: 1,
                     tags: vec![],
@@ -226,7 +255,7 @@ mod tests {
                     body: vec![],
                     ..Default::default()
                 }],
-            }],
+            }]),
         };
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
 
@@ -265,7 +294,7 @@ mod tests {
         };
         let bp = Blueprint {
             name: String::new(),
-            sections: vec![sec.clone()],
+            root: Section::new_root(vec![sec.clone()]),
         };
         assert_eq!(parse::section(text, 1), Ok(sec));
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
