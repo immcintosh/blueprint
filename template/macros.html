@@ -6,7 +6,7 @@
 
 {% macro render_section(section) %}
 <h{{ section.heading.rank }}>{{ section.heading.text }}
-    {%- for tag in section.heading.tags %} <span{{ tag_class(tag=tag) | safe }}><a href="{{ tag_link(tag=tag) }}">{{ tag.name }}</a></span>{% endfor -%}
+    {%- for tag in section.heading.tags %} <a href="{{ tag_link(tag=tag) }}"><span{{ tag_class(tag=tag) | safe }}>{{ tag.name }}</span></a>{% endfor -%}
 </h{{ section.heading.rank }}>
 
 {% for body in section.body -%}

@@ -40,6 +40,7 @@ pub enum Span {
     Bold(String),
     Italic(String),
     Strikethrough(String),
+    Link((String, String)),
 }
 
 impl Default for Span {
@@ -164,14 +165,18 @@ peg::parser! {
                     Err("mismatched span delimiters")
                 }
             }
+        rule span_link() -> Span
+            = "[" text:$([^ ']' | '\n']+) "](" link:$([^ ')' | '\n']+) ")" {
+                Span::Link((text.to_string(), link.to_string()))
+            }
         rule span_plain<T>(except: rule<T>) -> Span
-            = s:$((!__ !except() [_])+) {
+            = s:$((!__ !except() !span_link() [_])+) {
                 Span::Plain(s.to_string())
             }
         rule span_except<T>(except: rule<T>) -> Span
-            = span_decorated() / span_plain(<except()>)
+            = span_decorated() / span_link() / span_plain(<except()>)
         pub rule span() -> Span
-            = span_decorated() / span_plain(<span_decoration()>)
+            = span_decorated() / span_link() / span_plain(<span_decoration()>)
 
         // Body syntax
         rule spans() -> Paragraph

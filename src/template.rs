@@ -70,6 +70,7 @@ impl Engine {
                         Ok(Span::Bold(_)) => Ok(tera::to_value(" class=\"m-text m-strong\"")?),
                         Ok(Span::Italic(_)) => Ok(tera::to_value(" class=\"m-text m-em\"")?),
                         Ok(Span::Strikethrough(_)) => Ok(tera::to_value(" class=\"m-text m-s\"")?),
+                        Ok(Span::Link(_)) => Ok(tera::to_value("")?),
                         Err(_) => Err("'span' is not a span".into()),
                     }
                 } else {
@@ -87,6 +88,9 @@ impl Engine {
                     Ok(Span::Bold(s)) => Ok(tera::to_value(s)?),
                     Ok(Span::Italic(s)) => Ok(tera::to_value(s)?),
                     Ok(Span::Strikethrough(s)) => Ok(tera::to_value(s)?),
+                    Ok(Span::Link(s)) => {
+                        Ok(tera::to_value(format!("<a href=\"{}\">{}</a>", s.1, s.0))?)
+                    }
                     Err(_) => Err("not a span".into()),
                 }
             },
