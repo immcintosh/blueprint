@@ -29,9 +29,15 @@ impl Engine {
                 if let Some(tag) = args.get("tag") {
                     if let Ok(tag) = tera::from_value::<Tag>(tag.clone()) {
                         match tag.category {
-                            TagCategory::Simple => Ok(tera::to_value("m-label m-flat m-default")?),
-                            TagCategory::Requires => Ok(tera::to_value("m-label m-warning")?),
-                            TagCategory::Satisfies => Ok(tera::to_value("m-label m-success")?),
+                            TagCategory::Simple => {
+                                Ok(tera::to_value(" class=\"m-label m-flat m-default\"")?)
+                            }
+                            TagCategory::Requires => {
+                                Ok(tera::to_value(" class=\"m-label m-warning\"")?)
+                            }
+                            TagCategory::Satisfies => {
+                                Ok(tera::to_value(" class=\"m-label m-success\"")?)
+                            }
                         }
                     } else {
                         Err("'tag' is not a tag".into())
@@ -61,9 +67,9 @@ impl Engine {
                 if let Some(span) = args.get("span") {
                     match tera::from_value::<Span>(span.clone()) {
                         Ok(Span::Plain(_)) => Ok(tera::to_value("")?),
-                        Ok(Span::Bold(_)) => Ok(tera::to_value("m-text m-strong")?),
-                        Ok(Span::Italic(_)) => Ok(tera::to_value("m-text m-em")?),
-                        Ok(Span::Strikethrough(_)) => Ok(tera::to_value("m-text m-s")?),
+                        Ok(Span::Bold(_)) => Ok(tera::to_value(" class=\"m-text m-strong\"")?),
+                        Ok(Span::Italic(_)) => Ok(tera::to_value(" class=\"m-text m-em\"")?),
+                        Ok(Span::Strikethrough(_)) => Ok(tera::to_value(" class=\"m-text m-s\"")?),
                         Err(_) => Err("'span' is not a span".into()),
                     }
                 } else {

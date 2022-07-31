@@ -1,12 +1,12 @@
 {% macro render_spans(spans) %}
 {%- for span in spans -%}
-<span class="{{ span_class(span=span) }}">{{ span | span_text }}</span>
+<span{{ span_class(span=span) | safe }}>{{ span | span_text | safe }}</span>
 {%- endfor -%}
 {% endmacro render_span %}
 
 {% macro render_section(section) %}
 <h{{ section.heading.rank }}>{{ section.heading.text }}
-    {%- for tag in section.heading.tags %} <span class="{{ tag_class(tag=tag) }}"><a href="{{ tag_link(tag=tag) }}">{{ tag.name }}</a></span>{% endfor -%}
+    {%- for tag in section.heading.tags %} <span{{ tag_class(tag=tag) | safe }}><a href="{{ tag_link(tag=tag) }}">{{ tag.name }}</a></span>{% endfor -%}
 </h{{ section.heading.rank }}>
 
 {% for body in section.body -%}
