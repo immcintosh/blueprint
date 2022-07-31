@@ -41,10 +41,17 @@ pub struct Span {
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Table {
+    pub heading: Vec<Vec<Span>>,
+    pub body: Vec<Vec<Vec<Span>>>,
+}
+
+#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Paragraph {
     #[default]
     Empty,
     Spans(Vec<Span>),
+    Table(Table),
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -128,8 +135,10 @@ peg::parser! {
         rule ___() -> &'input str = quiet!{$(_ (![_] / __))} / expected!("eol / eof")
 
         // Span syntax
+        rule span_decoration_char() -> char
+            = ['*' | '/' | '~']
         rule span_decoration() -> SpanType
-            = d:['*' | '/' | '~'] {
+            = d:span_decoration_char() {
                 match d {
                     '*' => SpanType::Bold,
                     '/' => SpanType::Italic,
@@ -137,8 +146,8 @@ peg::parser! {
                     _ => unreachable!()
                 }
             }
-        pub rule span_decorated() -> Span
-            = open:span_decoration() s:$(span_plain()) close:span_decoration() {?
+        rule span_decorated() -> Span
+            = open:span_decoration() s:$(span_plain(<span_decoration()>)) close:span_decoration() {?
                 if open == close {
                     Ok(Span {
                         category: open,
@@ -148,21 +157,40 @@ peg::parser! {
                     Err("mismatched span delimiters")
                 }
             }
-        pub rule span_plain() -> Span
-            = s:$((!__ !span_decoration() [_])+) {
+        rule span_plain<T>(except: rule<T>) -> Span
+            = s:$((!__ !except() [_])+) {
                 Span {
                     category: SpanType::Raw,
                     text: s.to_string()
                 }
             }
+        rule span_except<T>(except: rule<T>) -> Span
+            = span_decorated() / span_plain(<except()>)
         pub rule span() -> Span
-            = span_decorated() / span_plain()
+            = span_decorated() / span_plain(<span_decoration()>)
 
         // Body syntax
-        rule paragraph() -> Paragraph
+        rule spans() -> Paragraph
             = __* !['#'] s:span()+ ___ { Paragraph::Spans(s) }
+        rule table_row() -> Vec<Vec<Span>>
+            = __* s:(span_except(<(['|'] / span_decoration_char())>)+) **<2,> "|" ___ {
+                s
+            }
+        rule table_heading() -> Vec<Vec<Span>>
+            = row:table_row() _ sep:((['-' | ' ']+) **<2,> "|") ___ {?
+                if sep.len() == row.len() {
+                    Ok(row)
+                } else {
+                    Err("separator count mismatch")
+                }
+            }
+        rule table() -> Paragraph
+            = head:table_heading()? rows:table_row()+ { Paragraph::Table(Table {
+                heading: head.unwrap_or_default(),
+                body: rows
+            })}
         pub rule body() -> Vec<Paragraph>
-            = paragraph()+
+            = (table() / spans())+
 
         // Tag syntax
         rule tag_category() -> TagCategory
@@ -305,6 +333,46 @@ mod tests {
         };
         assert_eq!(parse::section(text, 1), Ok(sec));
         assert_eq!(parse::blueprint(text, ""), Ok(bp));
+    }
+
+    #[test]
+    fn table() {
+        let text = "h|h\n-|-\na|b\nc|d";
+        let par = Paragraph::Table(Table {
+            heading: vec![
+                vec![Span {
+                    category: SpanType::Raw,
+                    text: "h".to_string(),
+                }],
+                vec![Span {
+                    category: SpanType::Raw,
+                    text: "h".to_string(),
+                }],
+            ],
+            body: vec![
+                vec![
+                    vec![Span {
+                        category: SpanType::Raw,
+                        text: "a".to_string(),
+                    }],
+                    vec![Span {
+                        category: SpanType::Raw,
+                        text: "b".to_string(),
+                    }],
+                ],
+                vec![
+                    vec![Span {
+                        category: SpanType::Raw,
+                        text: "c".to_string(),
+                    }],
+                    vec![Span {
+                        category: SpanType::Raw,
+                        text: "d".to_string(),
+                    }],
+                ],
+            ],
+        });
+        assert_eq!(parse::body(text), Ok(vec![par]));
     }
 
     #[test]

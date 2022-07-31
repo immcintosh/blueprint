@@ -1,15 +1,38 @@
+{% macro render_spans(spans) %}
+{%- for span in spans -%}
+<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
+{%- endfor -%}
+{% endmacro render_span %}
+
 {% macro render_section(section) %}
 <h{{ section.heading.rank }}>{{ section.heading.text }}
     {%- for tag in section.heading.tags %} <span class="{{ tag_class(tag=tag) }}"><a href="{{ tag_link(tag=tag) }}">{{ tag.name }}</a></span>{% endfor -%}
 </h{{ section.heading.rank }}>
 
 {% for body in section.body -%}
-<p>
 {%- if "Spans" in body -%}
-{%- for span in body.Spans -%}
-<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
-{%- endfor -%}
+<p>
+    {{ self::render_spans(spans=body.Spans) }}
 </p>
+{%- elif "Table" in body -%}
+<table class="m-table m-fullwidth">
+    <thead>
+        <tr>
+            {% for spans in body.Table.heading %}
+            <th>{{ self::render_spans(spans=spans) }}</td>
+            {% endfor %}
+        </tr>
+    </thead>
+    {% for row in body.Table.body %}
+    <tbody>
+        <tr>
+            {% for spans in row %}
+            <td>{{ self::render_spans(spans=spans) }}</td>
+            {% endfor %}
+        </tr>
+    </tbody>
+    {% endfor %}
+</table>
 {%- endif %}
 {%- endfor %}
 
