@@ -50,7 +50,7 @@ pub struct Theme {
 }
 
 impl Theme {
-    pub fn extract(&self, path: &std::path::Path) -> Result<()> {
+    pub fn store(&self, path: &std::path::Path) -> Result<()> {
         std::fs::create_dir_all(path)?;
         self.dir.extract_if(path, |entry| {
             entry.path().extension() == Some(std::ffi::OsStr::new("css"))
@@ -74,11 +74,6 @@ const THEME_MCSS: Theme = Theme {
 
 pub const THEME_MCSS_DARK: Theme = Theme {
     use_css: &["m-dark.css"],
-    ..THEME_MCSS
-};
-
-pub const THEME_MCSS_LIGHT: Theme = Theme {
-    use_css: &["m-light.css"],
     ..THEME_MCSS
 };
 

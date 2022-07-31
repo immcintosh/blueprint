@@ -49,12 +49,12 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn is(&self, category: TagCategory) -> bool {
+    pub fn find_tags(&self, category: TagCategory) -> Vec<&Tag> {
         self.heading
             .tags
             .iter()
-            .find(|t| t.category == category)
-            .is_some()
+            .filter(|t| t.category == category)
+            .collect()
     }
 }
 
