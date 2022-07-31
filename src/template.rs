@@ -59,18 +59,29 @@ impl Engine {
             "span_class",
             |args: &std::collections::HashMap<String, tera::Value>| -> tera::Result<tera::Value> {
                 if let Some(span) = args.get("span") {
-                    if let Ok(span) = tera::from_value::<Span>(span.clone()) {
-                        match span.category {
-                            SpanType::Raw => Ok(tera::to_value("")?),
-                            SpanType::Bold => Ok(tera::to_value("m-text m-strong")?),
-                            SpanType::Italic => Ok(tera::to_value("m-text m-em")?),
-                            SpanType::Strikethrough => Ok(tera::to_value("m-text m-s")?),
-                        }
-                    } else {
-                        Err("'span' is not a span".into())
+                    match tera::from_value::<Span>(span.clone()) {
+                        Ok(Span::Plain(_)) => Ok(tera::to_value("")?),
+                        Ok(Span::Bold(_)) => Ok(tera::to_value("m-text m-strong")?),
+                        Ok(Span::Italic(_)) => Ok(tera::to_value("m-text m-em")?),
+                        Ok(Span::Strikethrough(_)) => Ok(tera::to_value("m-text m-s")?),
+                        Err(_) => Err("'span' is not a span".into()),
                     }
                 } else {
                     Err("'span' argument missing".into())
+                }
+            },
+        );
+        tera.register_filter(
+            "span_text",
+            |val: &tera::Value,
+             _args: &std::collections::HashMap<String, tera::Value>|
+             -> tera::Result<tera::Value> {
+                match tera::from_value::<Span>(val.clone()) {
+                    Ok(Span::Plain(s)) => Ok(tera::to_value(s)?),
+                    Ok(Span::Bold(s)) => Ok(tera::to_value(s)?),
+                    Ok(Span::Italic(s)) => Ok(tera::to_value(s)?),
+                    Ok(Span::Strikethrough(s)) => Ok(tera::to_value(s)?),
+                    Err(_) => Err("not a span".into()),
                 }
             },
         );

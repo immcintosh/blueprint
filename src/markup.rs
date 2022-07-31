@@ -34,10 +34,29 @@ pub enum SpanType {
     Strikethrough,
 }
 
-#[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Span {
-    pub category: SpanType,
-    pub text: String,
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Span {
+    Plain(String),
+    Bold(String),
+    Italic(String),
+    Strikethrough(String),
+}
+
+impl Default for Span {
+    fn default() -> Self {
+        Span::Plain(Default::default())
+    }
+}
+
+impl Span {
+    fn from_decoration(dec: char, text: String) -> Span {
+        match dec {
+            '*' => Span::Bold(text),
+            '/' => Span::Italic(text),
+            '~' => Span::Strikethrough(text),
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Clone, Default, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -135,34 +154,19 @@ peg::parser! {
         rule ___() -> &'input str = quiet!{$(_ (![_] / __))} / expected!("eol / eof")
 
         // Span syntax
-        rule span_decoration_char() -> char
+        rule span_decoration() -> char
             = ['*' | '/' | '~']
-        rule span_decoration() -> SpanType
-            = d:span_decoration_char() {
-                match d {
-                    '*' => SpanType::Bold,
-                    '/' => SpanType::Italic,
-                    '~' => SpanType::Strikethrough,
-                    _ => unreachable!()
-                }
-            }
         rule span_decorated() -> Span
             = open:span_decoration() s:$(span_plain(<span_decoration()>)) close:span_decoration() {?
                 if open == close {
-                    Ok(Span {
-                        category: open,
-                        text: s.to_string()
-                    })
+                    Ok(Span::from_decoration(open, s.to_string()))
                 } else {
                     Err("mismatched span delimiters")
                 }
             }
         rule span_plain<T>(except: rule<T>) -> Span
             = s:$((!__ !except() [_])+) {
-                Span {
-                    category: SpanType::Raw,
-                    text: s.to_string()
-                }
+                Span::Plain(s.to_string())
             }
         rule span_except<T>(except: rule<T>) -> Span
             = span_decorated() / span_plain(<except()>)
@@ -173,7 +177,7 @@ peg::parser! {
         rule spans() -> Paragraph
             = __* !['#'] s:span()+ ___ { Paragraph::Spans(s) }
         rule table_row() -> Vec<Vec<Span>>
-            = __* s:(span_except(<(['|'] / span_decoration_char())>)+) **<2,> "|" ___ {
+            = __* s:(span_except(<(['|'] / span_decoration())>)+) **<2,> "|" ___ {
                 s
             }
         rule table_heading() -> Vec<Vec<Span>>
@@ -316,14 +320,8 @@ mod tests {
                 text: String::from("a"),
             },
             body: vec![
-                Paragraph::Spans(vec![Span {
-                    category: SpanType::Raw,
-                    text: String::from("c"),
-                }]),
-                Paragraph::Spans(vec![Span {
-                    category: SpanType::Bold,
-                    text: String::from("d"),
-                }]),
+                Paragraph::Spans(vec![Span::Plain("c".to_string())]),
+                Paragraph::Spans(vec![Span::Bold("d".to_string())]),
             ],
             subsections: Default::default(),
         };
@@ -340,35 +338,17 @@ mod tests {
         let text = "h|h\n-|-\na|b\nc|d";
         let par = Paragraph::Table(Table {
             heading: vec![
-                vec![Span {
-                    category: SpanType::Raw,
-                    text: "h".to_string(),
-                }],
-                vec![Span {
-                    category: SpanType::Raw,
-                    text: "h".to_string(),
-                }],
+                vec![Span::Plain("h".to_string())],
+                vec![Span::Plain("h".to_string())],
             ],
             body: vec![
                 vec![
-                    vec![Span {
-                        category: SpanType::Raw,
-                        text: "a".to_string(),
-                    }],
-                    vec![Span {
-                        category: SpanType::Raw,
-                        text: "b".to_string(),
-                    }],
+                    vec![Span::Plain("a".to_string())],
+                    vec![Span::Plain("b".to_string())],
                 ],
                 vec![
-                    vec![Span {
-                        category: SpanType::Raw,
-                        text: "c".to_string(),
-                    }],
-                    vec![Span {
-                        category: SpanType::Raw,
-                        text: "d".to_string(),
-                    }],
+                    vec![Span::Plain("c".to_string())],
+                    vec![Span::Plain("d".to_string())],
                 ],
             ],
         });
@@ -377,15 +357,9 @@ mod tests {
 
     #[test]
     fn body() {
-        let par1 = vec![Span {
-            category: SpanType::Raw,
-            text: String::from(" a"),
-        }];
-        let par2 = vec![Span {
-            category: SpanType::Bold,
-            text: String::from(" b "),
-        }];
-        let text = &format!("{}\n\n*{}*", par1[0].text, par2[0].text);
+        let par1 = vec![Span::Plain(" a".to_string())];
+        let par2 = vec![Span::Bold(" b ".to_string())];
+        let text = &format!(" a\n\n* b *");
         assert_eq!(
             parse::body(text),
             Ok(vec![Paragraph::Spans(par1), Paragraph::Spans(par2)])
@@ -424,18 +398,8 @@ mod tests {
 
     #[test]
     fn span() {
-        let span = Span {
-            category: SpanType::Raw,
-            text: String::from("a"),
-        };
-        let bold_span = Span {
-            category: SpanType::Bold,
-            text: String::from("a"),
-        };
-        let bold_span_text = &format!("*{}*", bold_span.text);
-
-        assert_eq!(parse::span(&span.text), Ok(span.clone()));
-        assert_eq!(parse::span(bold_span_text), Ok(bold_span.clone()));
+        assert_eq!(parse::span("a"), Ok(Span::Plain("a".to_string())));
+        assert_eq!(parse::span("*a*"), Ok(Span::Bold("a".to_string())));
     }
 
     #[test]

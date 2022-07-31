@@ -1,6 +1,6 @@
 {% macro render_spans(spans) %}
 {%- for span in spans -%}
-<span class="{{ span_class(span=span) }}">{{ span.text }}</span>
+<span class="{{ span_class(span=span) }}">{{ span | span_text }}</span>
 {%- endfor -%}
 {% endmacro render_span %}
 
